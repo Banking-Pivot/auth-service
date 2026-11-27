@@ -1,0 +1,596 @@
+openapi: 3.0.3
+info:
+  title: Auth API
+  version: 1.0.0
+  description: |
+    Authentication of the banking platform. Auth Service keeps the users of the platform, checks
+    their passwords and issues the access tokens (JWT) every other request carries.
+
+    How a request is authorized:
+    1. The caller logs in (a person, with user and password) or asks for a service token (a
+       service, with its client ID and secret) and receives an access token.
+    2. The caller sends it as `Authorization: Bearer <accessToken>` to the API Gateway.
+    3. The API Gateway checks the signature with the public keys of GET /api/v1/auth/jwks, the
+       issuer and the expiry, and the role each route asks for. Auth Service does not check
+       tokens on its own endpoints: reached through the gateway, the user endpoints are for
+       ADMIN only.
+
+    The access token is a JWT signed with RS256. Header: `kid`. Claims: `iss`, `sub` (the
+    username or the client ID), `roles` (array of strings), `iat`, `exp` and `jti`. There are no
+    refresh tokens: when the token expires the caller logs in again.
+
+    Passwords are stored as BCrypt hashes and never returned. Instants are UTC.
+servers:
+  - url: /
+tags:
+  - name: Authentication
+    description: Access tokens and the public keys that verify them.
+  - name: Users
+    description: Administration of the users of the platform. ADMIN only through the gateway.
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Log in with user and password
+      description: |
+        Returns an access token with the roles of the user. An unknown user, a wrong password,
+        a disabled user and a locked user are answered the same, so the answer does not reveal
+        which users exist nor which ones are locked.
+
+        After `auth.login.max-failed-attempts` (5) wrong passwords in a row the user is locked
+        for `auth.login.lock-duration` (15 minutes): until then every login is refused, also
+        with the right password. A correct login before the limit starts the count again, and
+        so does the end of the lock. An administrator ends a lock earlier with
+        POST /api/v1/auth/users/{userId}/unlock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: admin
+              password: a-secret-password
+      responses:
+        '200':
+          $ref: '#/components/responses/Token'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: >-
+            Unknown user, wrong password, disabled user or locked user (INVALID_CREDENTIALS).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_CREDENTIALS
+                message: The username or the password is not correct.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/login
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/service-token:
+    post:
+      tags: [Authentication]
+      operationId: issueServiceToken
+      summary: Get a token for a service
+      description: |
+        For the services that call other services through the API Gateway. The client ID and
+        its secret are registered in the configuration of Auth Service (the secret, in Vault).
+        The token carries the role SERVICE and the client ID as subject.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceTokenRequest'
+            example:
+              clientId: account-service
+              clientSecret: a-secret-shared-with-the-service
+      responses:
+        '200':
+          $ref: '#/components/responses/Token'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Unknown client or wrong secret (INVALID_CLIENT).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_CLIENT
+                message: The client ID or the client secret is not correct.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/service-token
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/jwks:
+    get:
+      tags: [Authentication]
+      operationId: getJwkSet
+      summary: Public keys that verify the access tokens
+      description: |
+        The JWK Set (RFC 7517) with the public half of the signing key. The API Gateway reads
+        it to check the signature of every token; the `kid` of a token names its key.
+      responses:
+        '200':
+          description: The JWK Set. It never contains private key material.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwkSetResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/users:
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a user
+      description: |
+        The username is stored in lower case and is unique. The password is stored as a BCrypt
+        hash and is never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              username: ana.perez
+              password: a-secret-password
+              roles: [USER]
+      responses:
+        '201':
+          description: The user was created.
+          headers:
+            Location:
+              description: Where to read the user.
+              schema:
+                type: string
+              example: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Another user already has that username (USERNAME_ALREADY_EXISTS).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: USERNAME_ALREADY_EXISTS
+                message: Another user already has that username.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/users
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List the users
+      description: Ordered by username.
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 10000
+            default: 0
+        - name: size
+          in: query
+          description: Users per page.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: One page of users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/users/{userId}:
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/users/{userId}/disable:
+    post:
+      tags: [Users]
+      operationId: disableUser
+      summary: Disable a user
+      description: |
+        A disabled user cannot log in. Tokens already issued stay valid until they expire.
+        Disabling a user that is already disabled changes nothing. The last enabled
+        administrator cannot be disabled.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user, disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: It is the last enabled administrator (LAST_ACTIVE_ADMIN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: LAST_ACTIVE_ADMIN
+                message: The last enabled administrator cannot be disabled.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b/disable
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/users/{userId}/enable:
+    post:
+      tags: [Users]
+      operationId: enableUser
+      summary: Enable a user
+      description: |
+        Enabling a user that is already enabled does not change its status. Enabling also
+        forgets the wrong passwords counted against the user and ends its lock, if any.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user, enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/users/{userId}/unlock:
+    post:
+      tags: [Users]
+      operationId: unlockUser
+      summary: Unlock a user
+      description: |
+        Forgets the wrong passwords counted against the user and ends its lock, so it can log
+        in at once. Unlocking a user that is not locked changes nothing. The status of the
+        user stays as it is: a disabled user is still disabled.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user, with no failed attempts and no lock.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+  responses:
+    Token:
+      description: The access token. It must not be stored by intermediaries.
+      headers:
+        Cache-Control:
+          description: Always no-store.
+          schema:
+            type: string
+          example: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TokenResponse'
+    BadRequest:
+      description: Malformed request or invalid, unknown or missing fields (INVALID_REQUEST).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: INVALID_REQUEST
+            message: 'Invalid or missing fields: password.'
+            timestamp: '2026-11-20T15:00:00Z'
+            path: /api/v1/auth/users
+    NotFound:
+      description: The user does not exist (USER_NOT_FOUND).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: USER_NOT_FOUND
+            message: The user does not exist.
+            timestamp: '2026-11-20T15:00:00Z'
+            path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+    UnsupportedMediaType:
+      description: The request body is not application/json (UNSUPPORTED_MEDIA_TYPE).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Unexpected failure (INTERNAL_ERROR). The response never exposes internals.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    LoginRequest:
+      title: LoginRequest
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Upper and lower case are the same user.
+          example: admin
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 72
+    ServiceTokenRequest:
+      title: ServiceTokenRequest
+      type: object
+      additionalProperties: false
+      required: [clientId, clientSecret]
+      properties:
+        clientId:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Name the service is registered under.
+          example: account-service
+        clientSecret:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 200
+    TokenResponse:
+      title: TokenResponse
+      type: object
+      required: [accessToken, tokenType, expiresIn, roles]
+      properties:
+        accessToken:
+          type: string
+          description: 'The JWT to send as `Authorization: Bearer <accessToken>`.'
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          format: int64
+          description: Seconds until the token expires.
+          example: 3600
+        roles:
+          type: array
+          description: Roles the token carries.
+          items:
+            $ref: '#/components/schemas/Role'
+    Role:
+      title: Role
+      type: string
+      enum: [ADMIN, USER, SERVICE]
+      description: |
+        ADMIN administers users and the product catalog. USER uses the banking APIs. SERVICE is
+        only found in service tokens.
+    UserRole:
+      title: UserRole
+      type: string
+      enum: [ADMIN, USER]
+      description: Roles a user can have.
+    UserStatus:
+      title: UserStatus
+      type: string
+      enum: [ACTIVE, DISABLED]
+    CreateUserRequest:
+      title: CreateUserRequest
+      type: object
+      additionalProperties: false
+      required: [username, password, roles]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+          description: Letters, digits, dot, underscore and hyphen. Stored in lower case.
+          example: ana.perez
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: Between 8 and 72 characters.
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UserRole'
+    UserResponse:
+      title: UserResponse
+      type: object
+      required: [id, username, roles, status, failedAttempts, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: ana.perez
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        failedAttempts:
+          type: integer
+          format: int32
+          minimum: 0
+          description: >-
+            Wrong passwords in a row since the last correct login, unlock or enabling. Once a
+            lock has ended, the count starts again with the next login.
+          example: 0
+        lockedUntil:
+          type: string
+          format: date-time
+          description: >-
+            Until when the logins of the user are refused because of too many wrong passwords.
+            Absent when the user has not been locked; an instant in the past is a lock that
+            already ended.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the user was last enabled or disabled.
+    UserPageResponse:
+      title: UserPageResponse
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+          format: int32
+          example: 0
+        size:
+          type: integer
+          format: int32
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          example: 1
+        totalPages:
+          type: integer
+          format: int64
+          description: Ceiling of totalElements divided by size; zero when there are no matches.
+          example: 1
+    JwkSetResponse:
+      title: JwkSetResponse
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JwkResponse'
+    JwkResponse:
+      title: JwkResponse
+      type: object
+      description: An RSA public key (RFC 7518).
+      required: [kty, kid, use, alg, n, e]
+      properties:
+        kty:
+          type: string
+          example: RSA
+        kid:
+          type: string
+          description: Identifier of the key; the tokens it signed carry it in their header.
+        use:
+          type: string
+          example: sig
+        alg:
+          type: string
+          example: RS256
+        n:
+          type: string
+          description: Modulus, base64url.
+        e:
+          type: string
+          description: Public exponent, base64url.
+          example: AQAB
+    ErrorResponse:
+      title: ErrorResponse
+      type: object
+      required: [code, message, timestamp, path]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable error identifier.
+          example: INVALID_CREDENTIALS
+        message:
+          type: string
+          description: Human-readable explanation of the error.
+          example: The username or the password is not correct.
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-20T15:00:00Z'
+        path:
+          type: string
+          example: /api/v1/auth/login
+        traceId:
+          type: string
+          description: >-
+            Correlation identifier of the request: the X-Correlation-ID header received, or
+            the one generated when it was absent. It is also returned in that header and
+            written in the logs of every service the request reached.

@@ -1,0 +1,18 @@
+# Settings served by the stub Config Server in integration tests. Pinned here so tests do not
+# depend on the banking-config repository; same shape as banking-config/auth-service.yml.
+auth:
+  jwt:
+    issuer: banking-auth
+    # Not the default of the code, so a test can tell the setting is read.
+    access-token-ttl: 15m
+  passwords:
+    # The lowest cost BCrypt accepts: the tests log in many times.
+    bcrypt-strength: 4
+  login:
+    # Not the defaults of the code, so a test can tell the settings are read.
+    max-failed-attempts: 3
+    lock-duration: 10m
+spring:
+  r2dbc:
+    pool:
+      max-size: 20

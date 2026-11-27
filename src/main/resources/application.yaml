@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: auth-service
+
+  # Port, database URLs (R2DBC and Flyway), the issuer and the lifetime of the tokens come
+  # from the Config Server: banking-config/auth-service.yml and auth-service-<profile>.yml.
+  # Secrets come from Vault, secret/auth-service and secret/auth-service/<profile>: the
+  # database user and password, the password of the first administrator, the secret that
+  # encrypts the signing key and the secret of every service client. Where Eureka is comes
+  # from banking-config/application.yml: the service registers there as auth-service.
+  config:
+    import:
+      - "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+      # Role ID and secret ID of this service's AppRole. In local development infra/vault
+      # writes this file every time Vault starts; elsewhere point VAULT_APPROLE_FILE to the
+      # file, or set SPRING_CLOUD_VAULT_APP_ROLE_ROLE_ID and SPRING_CLOUD_VAULT_APP_ROLE_SECRET_ID.
+      - "optional:file:${VAULT_APPROLE_FILE:../infra/.secrets/auth-service.properties}"
+      - "vault://"
+
+  cloud:
+    vault:
+      uri: ${VAULT_URI:http://localhost:8200}
+      authentication: APPROLE
+      # Without its secrets the service can neither reach its database nor read its signing
+      # key: stop at startup with the Vault error instead of failing later.
+      fail-fast: true
+      kv:
+        # Read only this service's paths, not the shared secret/application.
+        default-context: ""
+
+  reactor:
+    # The correlation id of a request reaches the logs of every thread that serves it.
+    context-propagation: auto
+
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+
+# Swagger UI shows the contract itself (served by OpenApiContractConfiguration),
+# not the spec springdoc derives from the generated annotations.
+springdoc:
+  swagger-ui:
+    url: /openapi/auth-api.yml
