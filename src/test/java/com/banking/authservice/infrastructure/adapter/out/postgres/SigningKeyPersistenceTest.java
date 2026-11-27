@@ -2,9 +2,9 @@ package com.banking.authservice.infrastructure.adapter.out.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.banking.authservice.domain.model.AccessToken;
-import com.banking.authservice.domain.model.Role;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.vo.AccessToken;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import com.banking.authservice.infrastructure.adapter.out.security.PrivateKeyCipher;
 import com.banking.authservice.infrastructure.adapter.out.security.RsaTokenSigner;
 import com.banking.authservice.infrastructure.adapter.out.security.SigningKeyStore;

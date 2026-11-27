@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.banking.authservice.application.port.in.EnsureAdministratorUseCase;
 import com.banking.authservice.application.port.in.GetVerificationKeysUseCase;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

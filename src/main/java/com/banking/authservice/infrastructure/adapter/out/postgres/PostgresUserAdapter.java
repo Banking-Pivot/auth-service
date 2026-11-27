@@ -7,9 +7,9 @@ import com.banking.authservice.application.exception.UsernameAlreadyExistsExcept
 import com.banking.authservice.application.model.ResultPage;
 import com.banking.authservice.application.port.out.UserStorePort;
 import com.banking.authservice.application.query.PageRequest;
-import com.banking.authservice.domain.model.Role;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.UserStatus;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.enums.UserStatus;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;

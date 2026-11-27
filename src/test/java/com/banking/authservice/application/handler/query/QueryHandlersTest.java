@@ -10,7 +10,7 @@ import com.banking.authservice.application.port.out.TokenSignerPort;
 import com.banking.authservice.application.port.out.UserStorePort;
 import com.banking.authservice.application.query.PageRequest;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import com.banking.authservice.support.Users;
 import java.util.List;
 import org.junit.jupiter.api.Test;

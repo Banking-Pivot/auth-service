@@ -1,4 +1,4 @@
-package com.banking.authservice.domain.model;
+package com.banking.authservice.domain.model.vo;
 
 /**
  * The public half of the RSA key that signs the access tokens, as a JWK publishes it.

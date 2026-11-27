@@ -1,9 +1,9 @@
 package com.banking.authservice.infrastructure.adapter.in.rest;
 
 import com.banking.authservice.application.model.ResultPage;
-import com.banking.authservice.domain.model.AccessToken;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.vo.AccessToken;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.JwkResponse;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.JwkSetResponse;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.Role;

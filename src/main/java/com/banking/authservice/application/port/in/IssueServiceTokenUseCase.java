@@ -1,7 +1,7 @@
 package com.banking.authservice.application.port.in;
 
 import com.banking.authservice.application.command.IssueServiceTokenCommand;
-import com.banking.authservice.domain.model.AccessToken;
+import com.banking.authservice.domain.model.vo.AccessToken;
 import reactor.core.publisher.Mono;
 
 /** Gives an access token to a registered service that presents its secret. */

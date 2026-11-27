@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.banking.authservice.application.exception.UserNotFoundException;
 import com.banking.authservice.application.port.out.UserStorePort;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.UserStatus;
+import com.banking.authservice.domain.model.enums.UserStatus;
 import com.banking.authservice.support.Users;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;

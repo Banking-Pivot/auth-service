@@ -1,6 +1,6 @@
 package com.banking.authservice.application.command;
 
-import com.banking.authservice.domain.model.Role;
+import com.banking.authservice.domain.model.enums.Role;
 import java.util.Set;
 
 /**

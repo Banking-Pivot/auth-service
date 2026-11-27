@@ -5,7 +5,7 @@ import com.banking.authservice.application.command.LoginCommand;
 import com.banking.authservice.application.port.in.GetVerificationKeysUseCase;
 import com.banking.authservice.application.port.in.IssueServiceTokenUseCase;
 import com.banking.authservice.application.port.in.LoginUseCase;
-import com.banking.authservice.domain.model.AccessToken;
+import com.banking.authservice.domain.model.vo.AccessToken;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.api.AuthenticationApiDelegate;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.JwkSetResponse;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.LoginRequest;

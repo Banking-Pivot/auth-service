@@ -1,4 +1,4 @@
-package com.banking.authservice.domain.model;
+package com.banking.authservice.domain.model.enums;
 
 /** What the holder of an access token may do. The API Gateway decides per route. */
 public enum Role {

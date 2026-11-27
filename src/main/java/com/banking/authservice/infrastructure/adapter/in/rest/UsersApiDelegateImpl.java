@@ -7,7 +7,7 @@ import com.banking.authservice.application.port.in.GetUserUseCase;
 import com.banking.authservice.application.port.in.ListUsersUseCase;
 import com.banking.authservice.application.port.in.UnlockUserUseCase;
 import com.banking.authservice.application.query.PageRequest;
-import com.banking.authservice.domain.model.Role;
+import com.banking.authservice.domain.model.enums.Role;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.api.UsersApiDelegate;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.CreateUserRequest;
 import com.banking.authservice.infrastructure.adapter.in.rest.generated.model.UserPageResponse;

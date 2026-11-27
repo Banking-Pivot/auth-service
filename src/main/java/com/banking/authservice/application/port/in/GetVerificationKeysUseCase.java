@@ -1,6 +1,6 @@
 package com.banking.authservice.application.port.in;
 
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import java.util.List;
 import reactor.core.publisher.Mono;
 

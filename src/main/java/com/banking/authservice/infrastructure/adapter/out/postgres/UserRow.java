@@ -1,8 +1,8 @@
 package com.banking.authservice.infrastructure.adapter.out.postgres;
 
-import com.banking.authservice.domain.model.Role;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.UserStatus;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.enums.UserStatus;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;

@@ -1,8 +1,8 @@
 package com.banking.authservice.application.port.out;
 
-import com.banking.authservice.domain.model.AccessToken;
-import com.banking.authservice.domain.model.Role;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.vo.AccessToken;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import java.util.List;
 import java.util.Set;
 import reactor.core.publisher.Mono;

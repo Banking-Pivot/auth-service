@@ -1,5 +1,6 @@
-package com.banking.authservice.domain.model;
+package com.banking.authservice.domain.model.vo;
 
+import com.banking.authservice.domain.model.enums.Role;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;

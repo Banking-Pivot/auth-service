@@ -1,7 +1,7 @@
 package com.banking.authservice.support;
 
-import com.banking.authservice.domain.model.Role;
 import com.banking.authservice.domain.model.User;
+import com.banking.authservice.domain.model.enums.Role;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

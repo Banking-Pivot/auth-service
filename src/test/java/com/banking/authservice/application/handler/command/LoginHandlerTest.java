@@ -14,10 +14,10 @@ import com.banking.authservice.application.exception.InvalidCredentialsException
 import com.banking.authservice.application.port.out.PasswordHasherPort;
 import com.banking.authservice.application.port.out.TokenSignerPort;
 import com.banking.authservice.application.port.out.UserStorePort;
-import com.banking.authservice.domain.model.AccessToken;
-import com.banking.authservice.domain.model.Role;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.UserStatus;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.enums.UserStatus;
+import com.banking.authservice.domain.model.vo.AccessToken;
 import com.banking.authservice.support.Users;
 import java.time.Duration;
 import java.time.Instant;

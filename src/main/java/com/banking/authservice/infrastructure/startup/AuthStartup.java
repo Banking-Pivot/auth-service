@@ -2,7 +2,7 @@ package com.banking.authservice.infrastructure.startup;
 
 import com.banking.authservice.application.port.in.EnsureAdministratorUseCase;
 import com.banking.authservice.application.port.in.GetVerificationKeysUseCase;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;

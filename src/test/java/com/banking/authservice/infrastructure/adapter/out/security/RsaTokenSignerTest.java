@@ -3,9 +3,9 @@ package com.banking.authservice.infrastructure.adapter.out.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.banking.authservice.domain.model.AccessToken;
-import com.banking.authservice.domain.model.Role;
-import com.banking.authservice.domain.model.VerificationKey;
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.vo.AccessToken;
+import com.banking.authservice.domain.model.vo.VerificationKey;
 import com.banking.authservice.support.InMemorySigningKeyStore;
 import com.banking.authservice.support.Tokens;
 import com.banking.authservice.support.Users;

@@ -3,6 +3,9 @@ package com.banking.authservice.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.enums.UserStatus;
+import com.banking.authservice.domain.model.vo.AccessToken;
 import com.banking.authservice.support.Users;
 import java.time.Duration;
 import java.time.Instant;

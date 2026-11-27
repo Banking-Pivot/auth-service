@@ -12,7 +12,7 @@ import com.banking.authservice.application.port.out.UserStorePort;
 import com.banking.authservice.domain.exception.AuthRuleViolationException;
 import com.banking.authservice.domain.exception.RuleViolation;
 import com.banking.authservice.domain.model.User;
-import com.banking.authservice.domain.model.UserStatus;
+import com.banking.authservice.domain.model.enums.UserStatus;
 import com.banking.authservice.support.Users;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;

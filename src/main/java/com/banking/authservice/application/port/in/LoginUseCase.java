@@ -1,7 +1,7 @@
 package com.banking.authservice.application.port.in;
 
 import com.banking.authservice.application.command.LoginCommand;
-import com.banking.authservice.domain.model.AccessToken;
+import com.banking.authservice.domain.model.vo.AccessToken;
 import reactor.core.publisher.Mono;
 
 /** Gives an access token to a user that proves who it is with its password. */

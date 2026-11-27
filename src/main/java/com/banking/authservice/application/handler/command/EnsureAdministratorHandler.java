@@ -5,8 +5,8 @@ import com.banking.authservice.application.exception.UsernameAlreadyExistsExcept
 import com.banking.authservice.application.port.in.CreateUserUseCase;
 import com.banking.authservice.application.port.in.EnsureAdministratorUseCase;
 import com.banking.authservice.application.port.out.UserStorePort;
-import com.banking.authservice.domain.model.Role;
 import com.banking.authservice.domain.model.User;
+import com.banking.authservice.domain.model.enums.Role;
 import java.util.Set;
 import reactor.core.publisher.Mono;
 

@@ -1,5 +1,7 @@
 package com.banking.authservice.domain.model;
 
+import com.banking.authservice.domain.model.enums.Role;
+import com.banking.authservice.domain.model.enums.UserStatus;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;

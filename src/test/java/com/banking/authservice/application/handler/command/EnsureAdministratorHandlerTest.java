@@ -10,7 +10,7 @@ import com.banking.authservice.application.command.CreateUserCommand;
 import com.banking.authservice.application.exception.UsernameAlreadyExistsException;
 import com.banking.authservice.application.port.in.CreateUserUseCase;
 import com.banking.authservice.application.port.out.UserStorePort;
-import com.banking.authservice.domain.model.Role;
+import com.banking.authservice.domain.model.enums.Role;
 import com.banking.authservice.support.Users;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
