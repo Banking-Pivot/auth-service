@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 /** Administration of users, end to end against a real database. */
 class UsersApiTest extends IntegrationTest {
@@ -208,6 +210,184 @@ class UsersApiTest extends IntegrationTest {
         webTestClient.get().uri("/api/v1/auth/users/not-a-uuid").exchange(),
         400,
         "INVALID_REQUEST");
+  }
+
+  @Test
+  void updatingAUserReplacesItsRolesAndKeepsItsPassword() {
+    UserResponse ana = created("ana", "USER");
+
+    UserResponse updated = updated(ana.getId(), Map.of("roles", List.of("USER", "ADMIN")));
+
+    assertThat(updated.getRoles()).containsExactly(UserRole.ADMIN, UserRole.USER);
+    assertThat(updated.getId()).isEqualTo(ana.getId());
+    assertThat(updated.getUsername()).isEqualTo("ana");
+    assertThat(updated.getStatus()).isEqualTo(UserStatus.ACTIVE);
+    assertThat(updated.getCreatedAt()).isEqualTo(ana.getCreatedAt());
+    assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(ana.getUpdatedAt());
+    assertThat(found(ana.getId())).isEqualTo(updated);
+    assertThat(loggedIn("ana", PASSWORD).getRoles()).hasSize(2);
+
+    // The same roles again change nothing, not even when the user was last updated.
+    assertThat(updated(ana.getId(), Map.of("roles", List.of("ADMIN", "USER")))).isEqualTo(updated);
+  }
+
+  @Test
+  void updatingAUserWithAPasswordReplacesItAndEndsItsLock() {
+    UserResponse ana = created("ana", "USER");
+    for (int attempt = 0; attempt < 3; attempt++) {
+      expectError(login("ana", "not-the-password"), 401, "INVALID_CREDENTIALS");
+    }
+    expectError(login("ana", PASSWORD), 401, "INVALID_CREDENTIALS");
+    assertThat(found(ana.getId()).getLockedUntil()).isNotNull();
+
+    String body =
+        update(ana.getId(), Map.of("roles", List.of("USER"), "password", "Otra-clave-2026"))
+            .expectStatus()
+            .isOk()
+            .expectBody(String.class)
+            .returnResult()
+            .getResponseBody();
+
+    assertThat(body)
+        .contains("\"roles\":[\"USER\"]", "\"failedAttempts\":0")
+        .doesNotContain("Otra-clave-2026", "password", "lockedUntil", "$2");
+    assertThat(storedHash("ana")).startsWith("$2").doesNotContain("Otra-clave-2026");
+    loggedIn("ana", "Otra-clave-2026");
+    expectError(login("ana", PASSWORD), 401, "INVALID_CREDENTIALS");
+  }
+
+  @Test
+  void anUpdateThatBreaksTheContractChangesNothing() {
+    UserResponse ana = created("ana", "USER");
+
+    expectError(update(ana.getId(), Map.of("roles", List.of())), 400, "INVALID_REQUEST")
+        .jsonPath("$.message")
+        .isEqualTo("Invalid or missing fields: roles.");
+    expectError(update(ana.getId(), Map.of("password", PASSWORD)), 400, "INVALID_REQUEST");
+    expectError(update(ana.getId(), Map.of("roles", List.of("SERVICE"))), 400, "INVALID_REQUEST");
+    expectError(
+            update(ana.getId(), Map.of("roles", List.of("ADMIN"), "password", "short")),
+            400,
+            "INVALID_REQUEST")
+        .jsonPath("$.message")
+        .isEqualTo("Invalid or missing fields: password.");
+    expectError(
+        update(ana.getId(), Map.of("roles", List.of("ADMIN"), "password", "ñ".repeat(72))),
+        400,
+        "INVALID_REQUEST");
+    expectError(
+        update(ana.getId(), Map.of("roles", List.of("ADMIN"), "username", "other")),
+        400,
+        "INVALID_REQUEST");
+    expectError(update("not-a-uuid", Map.of("roles", List.of("USER"))), 400, "INVALID_REQUEST");
+
+    assertThat(found(ana.getId())).isEqualTo(ana);
+    loggedIn("ana", PASSWORD);
+  }
+
+  @Test
+  void deletingAUserRemovesItAndFreesItsUsername() {
+    UserResponse ana = created("ana", "USER");
+
+    delete(ana.getId()).expectStatus().isNoContent().expectBody().isEmpty();
+
+    assertThat(userCount()).isEqualTo(1);
+    expectError(
+        webTestClient.get().uri("/api/v1/auth/users/{userId}", ana.getId()).exchange(),
+        404,
+        "USER_NOT_FOUND");
+    expectError(delete(ana.getId()), 404, "USER_NOT_FOUND");
+    expectError(login("ana", PASSWORD), 401, "INVALID_CREDENTIALS");
+    assertThat(created("ana", "USER").getId()).isNotEqualTo(ana.getId());
+  }
+
+  @Test
+  void theInitialAdministratorCannotBeDeletedNorLoseTheRoleOfAdministrator() {
+    UUID admin = userId(ADMIN);
+    created("second.admin", "ADMIN");
+
+    expectError(delete(admin), 409, "INITIAL_ADMIN_PROTECTED")
+        .jsonPath("$.message")
+        .isEqualTo("The initial administrator cannot be deleted.")
+        .jsonPath("$.path")
+        .isEqualTo("/api/v1/auth/users/" + admin);
+    expectError(update(admin, Map.of("roles", List.of("USER"))), 409, "INITIAL_ADMIN_PROTECTED")
+        .jsonPath("$.message")
+        .isEqualTo("The initial administrator cannot lose the role ADMIN.");
+
+    assertThat(found(admin).getRoles()).containsExactly(UserRole.ADMIN);
+    loggedIn(ADMIN, ADMIN_PASSWORD);
+
+    // It can still get another role next to ADMIN.
+    assertThat(updated(admin, Map.of("roles", List.of("ADMIN", "USER"))).getRoles())
+        .containsExactly(UserRole.ADMIN, UserRole.USER);
+    updated(admin, Map.of("roles", List.of("ADMIN")));
+  }
+
+  @Test
+  void theLastEnabledAdministratorCannotBeDeletedNorLoseTheRoleOfAdministrator() {
+    UserResponse second = created("second.admin", "ADMIN");
+    changed(userId(ADMIN), "disable");
+
+    expectError(delete(second.getId()), 422, "LAST_ACTIVE_ADMIN")
+        .jsonPath("$.message")
+        .isEqualTo("The last enabled administrator cannot be deleted.");
+    expectError(update(second.getId(), Map.of("roles", List.of("USER"))), 422, "LAST_ACTIVE_ADMIN")
+        .jsonPath("$.message")
+        .isEqualTo("The last enabled administrator cannot lose the role ADMIN.");
+
+    // With the initial administrator enabled again, the second one can be deleted.
+    changed(userId(ADMIN), "enable");
+    delete(second.getId()).expectStatus().isNoContent();
+    assertThat(userCount()).isEqualTo(1);
+  }
+
+  @Test
+  void updatingOrDeletingAnUnknownUserIsNotFound() {
+    UUID unknown = UUID.randomUUID();
+
+    expectError(update(unknown, Map.of("roles", List.of("USER"))), 404, "USER_NOT_FOUND")
+        .jsonPath("$.path")
+        .isEqualTo("/api/v1/auth/users/" + unknown);
+    expectError(delete(unknown), 404, "USER_NOT_FOUND");
+    expectError(
+        webTestClient.delete().uri("/api/v1/auth/users/not-a-uuid").exchange(),
+        400,
+        "INVALID_REQUEST");
+  }
+
+  private WebTestClient.ResponseSpec update(Object userId, Object body) {
+    return webTestClient
+        .put()
+        .uri("/api/v1/auth/users/{userId}", userId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(body)
+        .exchange();
+  }
+
+  private UserResponse updated(UUID userId, Object body) {
+    return update(userId, body)
+        .expectStatus()
+        .isOk()
+        .expectBody(UserResponse.class)
+        .returnResult()
+        .getResponseBody();
+  }
+
+  private WebTestClient.ResponseSpec delete(UUID userId) {
+    return webTestClient.delete().uri("/api/v1/auth/users/{userId}", userId).exchange();
+  }
+
+  private UserResponse found(UUID userId) {
+    return webTestClient
+        .get()
+        .uri("/api/v1/auth/users/{userId}", userId)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody(UserResponse.class)
+        .returnResult()
+        .getResponseBody();
   }
 
   private UserResponse changed(UUID userId, String action) {

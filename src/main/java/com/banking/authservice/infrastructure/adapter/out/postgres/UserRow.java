@@ -33,12 +33,17 @@ public record UserRow(
         user.id(),
         user.username(),
         user.passwordHash(),
-        user.roles().stream().map(Enum::name).sorted().collect(Collectors.joining(SEPARATOR)),
+        rolesOf(user),
         user.status(),
         user.failedAttempts(),
         user.lockedUntil(),
         user.createdAt(),
         user.updatedAt());
+  }
+
+  /** The roles of a user as the column keeps them. */
+  static String rolesOf(User user) {
+    return user.roles().stream().map(Enum::name).sorted().collect(Collectors.joining(SEPARATOR));
   }
 
   User toUser() {

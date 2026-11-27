@@ -36,6 +36,31 @@ public interface UserStorePort {
   Mono<Void> updateStatus(User changed);
 
   /**
+   * Stores the roles of a user and when they changed.
+   *
+   * @param changed the user with its new roles
+   * @return completion
+   */
+  Mono<Void> updateRoles(User changed);
+
+  /**
+   * Stores the roles and the password hash of a user, its failed attempts, its lock and when they
+   * changed.
+   *
+   * @param changed the user with its new roles and its new password hash
+   * @return completion
+   */
+  Mono<Void> updateRolesAndPassword(User changed);
+
+  /**
+   * Removes a user. Removing a user that is not stored changes nothing.
+   *
+   * @param userId identifier of the user
+   * @return completion
+   */
+  Mono<Void> delete(UUID userId);
+
+  /**
    * Stores the failed attempts and the lock of a user, only if both are still the ones that were
    * read. Two logins of the same user at the same time therefore cannot overwrite each other: the
    * one that comes second is told and has to read the user again.

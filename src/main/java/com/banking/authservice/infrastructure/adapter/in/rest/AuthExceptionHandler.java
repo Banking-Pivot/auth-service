@@ -1,5 +1,6 @@
 package com.banking.authservice.infrastructure.adapter.in.rest;
 
+import com.banking.authservice.application.exception.InitialAdministratorProtectedException;
 import com.banking.authservice.application.exception.InvalidClientException;
 import com.banking.authservice.application.exception.InvalidCredentialsException;
 import com.banking.authservice.application.exception.UserNotFoundException;
@@ -76,6 +77,16 @@ public class AuthExceptionHandler {
   public ResponseEntity<ErrorResponse> handleUsernameTaken(
       UsernameAlreadyExistsException exception, ServerWebExchange exchange) {
     return error(HttpStatus.CONFLICT, "USERNAME_ALREADY_EXISTS", exception.getMessage(), exchange);
+  }
+
+  /**
+   * Answers 409 {@code INITIAL_ADMIN_PROTECTED} when the initial administrator would be deleted or
+   * would lose the role of administrator.
+   */
+  @ExceptionHandler(InitialAdministratorProtectedException.class)
+  public ResponseEntity<ErrorResponse> handleInitialAdministratorProtected(
+      InitialAdministratorProtectedException exception, ServerWebExchange exchange) {
+    return error(HttpStatus.CONFLICT, "INITIAL_ADMIN_PROTECTED", exception.getMessage(), exchange);
   }
 
   /**

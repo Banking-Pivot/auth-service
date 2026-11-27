@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Auth API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Authentication of the banking platform. Auth Service keeps the users of the platform, checks
     their passwords and issues the access tokens (JWT) every other request carries.
@@ -231,6 +231,89 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update a user
+      description: |
+        Replaces the roles of the user and, when the request carries one, its password. The
+        username and the status do not change. A new password also forgets the wrong passwords
+        counted against the user and ends its lock, if any. Tokens already issued keep the
+        roles they were issued with until they expire.
+
+        The initial administrator, the user created when the service first started, cannot
+        lose the role ADMIN. Neither can the last enabled administrator.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              roles: [ADMIN, USER]
+      responses:
+        '200':
+          description: The user, updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InitialAdminProtected'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: It is the last enabled administrator (LAST_ACTIVE_ADMIN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: LAST_ACTIVE_ADMIN
+                message: The last enabled administrator cannot lose the role ADMIN.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete a user
+      description: |
+        Removes the user for good: it cannot log in any more and its username is free again.
+        Tokens already issued stay valid until they expire. The initial administrator, the user
+        created when the service first started, cannot be deleted. Neither can the last enabled
+        administrator.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: The user was deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InitialAdminProtected'
+        '422':
+          description: It is the last enabled administrator (LAST_ACTIVE_ADMIN).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: LAST_ACTIVE_ADMIN
+                message: The last enabled administrator cannot be deleted.
+                timestamp: '2026-11-20T15:00:00Z'
+                path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/auth/users/{userId}/disable:
     post:
       tags: [Users]
@@ -358,6 +441,19 @@ components:
             message: The user does not exist.
             timestamp: '2026-11-20T15:00:00Z'
             path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
+    InitialAdminProtected:
+      description: >-
+        The user is the initial administrator, which cannot be deleted nor lose the role ADMIN
+        (INITIAL_ADMIN_PROTECTED).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: INITIAL_ADMIN_PROTECTED
+            message: The initial administrator cannot be deleted.
+            timestamp: '2026-11-20T15:00:00Z'
+            path: /api/v1/auth/users/3f2a9c1e-5b7d-4e8f-9a0b-1c2d3e4f5a6b
     UnsupportedMediaType:
       description: The request body is not application/json (UNSUPPORTED_MEDIA_TYPE).
       content:
@@ -468,6 +564,27 @@ components:
           uniqueItems: true
           items:
             $ref: '#/components/schemas/UserRole'
+    UpdateUserRequest:
+      title: UpdateUserRequest
+      type: object
+      additionalProperties: false
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          description: The roles the user has from now on; they replace the ones it had.
+          items:
+            $ref: '#/components/schemas/UserRole'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: >-
+            New password, between 8 and 72 characters. When absent the user keeps its password.
     UserResponse:
       title: UserResponse
       type: object
@@ -490,8 +607,8 @@ components:
           format: int32
           minimum: 0
           description: >-
-            Wrong passwords in a row since the last correct login, unlock or enabling. Once a
-            lock has ended, the count starts again with the next login.
+            Wrong passwords in a row since the last correct login, unlock, enabling or new
+            password. Once a lock has ended, the count starts again with the next login.
           example: 0
         lockedUntil:
           type: string
@@ -506,7 +623,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-          description: When the user was last enabled or disabled.
+          description: When the user was last updated, enabled or disabled.
     UserPageResponse:
       title: UserPageResponse
       type: object

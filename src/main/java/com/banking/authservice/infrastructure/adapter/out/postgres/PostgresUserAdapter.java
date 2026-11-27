@@ -25,6 +25,8 @@ public class PostgresUserAdapter implements UserStorePort {
 
   private static final String UNIQUE_USERNAME = "uk_users_username";
   private static final String ID = "id";
+  private static final String ROLES = "roles";
+  private static final String UPDATED_AT = "updatedAt";
   private static final String FAILED_ATTEMPTS = "failedAttempts";
   private static final String LOCKED_UNTIL = "lockedUntil";
 
@@ -62,8 +64,36 @@ public class PostgresUserAdapter implements UserStorePort {
         .update(UserRow.class)
         .matching(query(where(ID).is(changed.id())))
         .apply(
-            Update.update("status", changed.status().name()).set("updatedAt", changed.updatedAt()))
+            Update.update("status", changed.status().name()).set(UPDATED_AT, changed.updatedAt()))
         .then();
+  }
+
+  @Override
+  public Mono<Void> updateRoles(User changed) {
+    return template
+        .update(UserRow.class)
+        .matching(query(where(ID).is(changed.id())))
+        .apply(Update.update(ROLES, UserRow.rolesOf(changed)).set(UPDATED_AT, changed.updatedAt()))
+        .then();
+  }
+
+  @Override
+  public Mono<Void> updateRolesAndPassword(User changed) {
+    return template
+        .update(UserRow.class)
+        .matching(query(where(ID).is(changed.id())))
+        .apply(
+            Update.update(ROLES, UserRow.rolesOf(changed))
+                .set("passwordHash", changed.passwordHash())
+                .set(FAILED_ATTEMPTS, changed.failedAttempts())
+                .set(LOCKED_UNTIL, changed.lockedUntil())
+                .set(UPDATED_AT, changed.updatedAt()))
+        .then();
+  }
+
+  @Override
+  public Mono<Void> delete(UUID userId) {
+    return template.delete(query(where(ID).is(userId)), UserRow.class).then();
   }
 
   // The update only matches the row while it still has the failed attempts and the lock that were
@@ -100,7 +130,7 @@ public class PostgresUserAdapter implements UserStorePort {
   public Mono<Long> countActiveAdministrators() {
     return template.count(
         query(
-            where("roles")
+            where(ROLES)
                 .like("%" + Role.ADMIN.name() + "%")
                 .and("status")
                 .is(UserStatus.ACTIVE.name())),

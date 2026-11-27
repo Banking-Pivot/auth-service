@@ -148,6 +148,40 @@ class UserTest {
   }
 
   @Test
+  void newRolesKeepEverythingElseAndTheSameRolesChangeNothing() {
+    User locked = Users.ana().withFailedLogin(1, LOCK, Users.NOW);
+
+    User promoted = locked.withRoles(Set.of(Role.ADMIN, Role.USER), Users.NOW);
+
+    assertThat(promoted.roles()).containsExactlyInAnyOrder(Role.ADMIN, Role.USER);
+    assertThat(promoted.updatedAt()).isEqualTo(Users.NOW);
+    assertThat(promoted.createdAt()).isEqualTo(locked.createdAt());
+    assertThat(promoted.passwordHash()).isEqualTo(locked.passwordHash());
+    assertThat(promoted.failedAttempts()).isEqualTo(1);
+    assertThat(promoted.lockedUntil()).isEqualTo(locked.lockedUntil());
+    assertThat(locked.withRoles(Set.of(Role.USER), Users.NOW)).isSameAs(locked);
+    assertThatThrownBy(() -> locked.withRoles(Set.of(), Users.NOW))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> locked.withRoles(Set.of(Role.SERVICE), Users.NOW))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void aNewPasswordForgetsTheFailedAttemptsAndTheLock() {
+    User locked = Users.ana().withFailedLogin(1, LOCK, Users.NOW);
+
+    User changed = locked.withPasswordHash("another-hash", Users.NOW);
+
+    assertThat(changed.passwordHash()).isEqualTo("another-hash");
+    assertThat(changed.failedAttempts()).isZero();
+    assertThat(changed.lockedUntil()).isNull();
+    assertThat(changed.updatedAt()).isEqualTo(Users.NOW);
+    assertThat(changed.roles()).isEqualTo(locked.roles());
+    assertThat(changed.status()).isEqualTo(locked.status());
+    assertThat(changed.createdAt()).isEqualTo(locked.createdAt());
+  }
+
+  @Test
   void aNegativeCountIsRejectedAndTheLockIsKeptToTheMicrosecond() {
     User ana = Users.ana();
 

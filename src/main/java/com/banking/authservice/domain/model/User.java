@@ -18,13 +18,13 @@ import java.util.regex.Pattern;
  * access tokens of the user carry.
  *
  * <p>The username is kept in lower case, so upper and lower case name the same user. The password
- * itself is never kept. Instances are immutable; enabling and disabling return a new one. Instants
- * are kept to the microsecond, the precision of the database, so a user reads back equal to the one
- * that was stored.
+ * itself is never kept. Instances are immutable; every change returns a new one. Instants are kept
+ * to the microsecond, the precision of the database, so a user reads back equal to the one that was
+ * stored.
  *
  * <p>Wrong passwords in a row are counted. When the count reaches the limit the user is locked for
  * a while: until {@code lockedUntil} it cannot log in, not even with its password. A correct login,
- * the end of the lock, an unlock and enabling the user start the count again.
+ * the end of the lock, an unlock, a new password and enabling the user start the count again.
  *
  * @param id identifier of the user
  * @param username name the user logs in with, in lower case
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  * @param lockedUntil until when logins are refused because of wrong passwords; null when the user
  *     has not been locked
  * @param createdAt when the user was created
- * @param updatedAt when the user was last enabled or disabled
+ * @param updatedAt when the user was last updated, enabled or disabled
  */
 public record User(
     UUID id,
@@ -138,6 +138,32 @@ public record User(
     }
     return new User(
         id, username, passwordHash, roles, newStatus, failedAttempts, lockedUntil, createdAt, now);
+  }
+
+  /**
+   * The same user with other roles.
+   *
+   * @param newRoles roles to change to
+   * @param now the current instant
+   * @return this user when it already has those roles; otherwise the changed one
+   */
+  public User withRoles(Set<Role> newRoles, Instant now) {
+    if (roles.equals(newRoles)) {
+      return this;
+    }
+    return new User(
+        id, username, passwordHash, newRoles, status, failedAttempts, lockedUntil, createdAt, now);
+  }
+
+  /**
+   * The same user with another password, no failed attempts and no lock.
+   *
+   * @param newPasswordHash hash of the new password
+   * @param now the current instant
+   * @return the changed user
+   */
+  public User withPasswordHash(String newPasswordHash, Instant now) {
+    return new User(id, username, newPasswordHash, roles, status, 0, null, createdAt, now);
   }
 
   /**

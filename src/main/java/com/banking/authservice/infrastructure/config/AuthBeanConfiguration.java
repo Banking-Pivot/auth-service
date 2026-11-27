@@ -2,15 +2,18 @@ package com.banking.authservice.infrastructure.config;
 
 import com.banking.authservice.application.handler.command.ChangeUserStatusHandler;
 import com.banking.authservice.application.handler.command.CreateUserHandler;
+import com.banking.authservice.application.handler.command.DeleteUserHandler;
 import com.banking.authservice.application.handler.command.EnsureAdministratorHandler;
 import com.banking.authservice.application.handler.command.IssueServiceTokenHandler;
 import com.banking.authservice.application.handler.command.LoginHandler;
 import com.banking.authservice.application.handler.command.UnlockUserHandler;
+import com.banking.authservice.application.handler.command.UpdateUserHandler;
 import com.banking.authservice.application.handler.query.GetUserHandler;
 import com.banking.authservice.application.handler.query.GetVerificationKeysHandler;
 import com.banking.authservice.application.handler.query.ListUsersHandler;
 import com.banking.authservice.application.port.in.ChangeUserStatusUseCase;
 import com.banking.authservice.application.port.in.CreateUserUseCase;
+import com.banking.authservice.application.port.in.DeleteUserUseCase;
 import com.banking.authservice.application.port.in.EnsureAdministratorUseCase;
 import com.banking.authservice.application.port.in.GetUserUseCase;
 import com.banking.authservice.application.port.in.GetVerificationKeysUseCase;
@@ -18,10 +21,12 @@ import com.banking.authservice.application.port.in.IssueServiceTokenUseCase;
 import com.banking.authservice.application.port.in.ListUsersUseCase;
 import com.banking.authservice.application.port.in.LoginUseCase;
 import com.banking.authservice.application.port.in.UnlockUserUseCase;
+import com.banking.authservice.application.port.in.UpdateUserUseCase;
 import com.banking.authservice.application.port.out.PasswordHasherPort;
 import com.banking.authservice.application.port.out.ServiceClientsPort;
 import com.banking.authservice.application.port.out.TokenSignerPort;
 import com.banking.authservice.application.port.out.UserStorePort;
+import com.banking.authservice.domain.model.User;
 import com.banking.authservice.infrastructure.adapter.out.security.BcryptPasswordHasher;
 import com.banking.authservice.infrastructure.adapter.out.security.ConfiguredServiceClients;
 import com.banking.authservice.infrastructure.adapter.out.security.PrivateKeyCipher;
@@ -121,6 +126,20 @@ public class AuthBeanConfiguration {
   @Bean
   public UnlockUserUseCase unlockUserUseCase(UserStorePort users) {
     return new UnlockUserHandler(users);
+  }
+
+  /** The update of a user, with the name of the initial administrator, which stays one. */
+  @Bean
+  public UpdateUserUseCase updateUserUseCase(
+      UserStorePort users, PasswordHasherPort hasher, Clock clock, AuthProperties properties) {
+    return new UpdateUserHandler(
+        users, hasher, clock, User.normalize(properties.bootstrap().adminUsername()));
+  }
+
+  /** The removal of a user, with the name of the initial administrator, which cannot be removed. */
+  @Bean
+  public DeleteUserUseCase deleteUserUseCase(UserStorePort users, AuthProperties properties) {
+    return new DeleteUserHandler(users, User.normalize(properties.bootstrap().adminUsername()));
   }
 
   /** The creation of the first administrator, with the name and the password of the settings. */
